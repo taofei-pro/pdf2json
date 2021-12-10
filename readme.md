@@ -6,147 +6,47 @@ The goal is to enable server side PDF parsing with interactive form elements whe
 
 ## Install
 
->npm install pdf2json
-
-Or, install it globally:
->sudo npm install pdf2json -g
-
-To update with latest version:
->sudo npm update pdf2json -g
-
-To Run in RESTful Web Service or as Commandline Utility
-* More details can be found at the bottom of this document.
-
-## Test
-
-After install, run command line:
-
-> npm run test
-
-It'll scan and parse *260* PDF AcroForm files under *_./test/pdf_*, runs with *_-s -t -c -m_* command line options, generates primary output JSON, additional text content JSON, form fields JSON and merged text JSON file for each PDF. It usually takes ~20s in my MacBook Pro to complete, check *_./test/target/_* for outputs.
-
-### Test Exception Handlings
-
-After install, run command line:
-
-> npm run test-misc
-
-It'll scan and parse all PDF files under *_./test/pdf/misc_*, also runs with *_-s -t -c -m_* command line options, generates primary output JSON, additional text content JSON, form fields JSON and merged text JSON file for 5 PDF fields, while catches exceptions with stack trace for:
- * _bad XRef entry_ for `pdf/misc/i200_test.pdf`
- * _unsupported encryption algorithm_ for `pdf/misc/i43_encrypted.pdf` 
- * _Invalid XRef stream header_ for `pdf/misc/i243_problem_file_anon.pdf`
-
-### Test Streams
-After install, run command line:
-
-> npm run parse-r
-
-It scans 165 PDF files under *../test/pdf/fd/form_*, parses with [Stream API](https://nodejs.org/dist/latest-v14.x/docs/api/stream.html), then generates output to *_./test/target/fd/form_*.
-
-More test scripts with different commandline options can be found at *_package.json_*.
+>npm install pdf2json-mod
 
 ## Code Example
+
+* Test File:./test/parser-ai.js
 
 * Parse a PDF file then write to a JSON file:
 
 ````javascript
-    const fs = require('fs'),
-        PDFParser = require("pdf2json");
+    const PDFParser = require("pdf2json-mod");
 
-    const pdfParser = new PDFParser();
+    const pdfParser = new PDFParser(this, 1);
 
-    pdfParser.on("pdfParser_dataError", errData => console.error(errData.parserError) );
-    pdfParser.on("pdfParser_dataReady", pdfData => {
-        fs.writeFile("./pdf2json/test/F1040EZ.json", JSON.stringify(pdfData));
-    });
-
-    pdfParser.loadPDF("./pdf2json/test/pdf/fd/form/F1040EZ.pdf");
-````
-
-Or, call directly with buffer:
-
-````javascript
-    fs.readFile(pdfFilePath, (err, pdfBuffer) => {
-      if (!err) {
-        pdfParser.parseBuffer(pdfBuffer);
-      }
-    })
-````
-
-Or, use more granular page level parsing events (v2.0.0)
-
-````javascript
-    pdfParser.on("readable", meta => console.log("PDF Metadata", meta) );
-    pdfParser.on("data", page => console.log(page ? "One page paged" : "All pages parsed", page));
-    pdfParser.on("error", err => console.erro("Parser Error", err);
-````
-
-* Parse a PDF then write a .txt file (which only contains textual content of the PDF)
-
-````javascript
-    const fs = require('fs'),
-        PDFParser = require("pdf2json");
-
-    const pdfParser = new PDFParser(this,1);
-
-    pdfParser.on("pdfParser_dataError", errData => console.error(errData.parserError) );
-    pdfParser.on("pdfParser_dataReady", pdfData => {
-        fs.writeFile("./pdf2json/test/F1040EZ.content.txt", pdfParser.getRawTextContent(), ()=>{console.log("Done.");});
-    });
-
-    pdfParser.loadPDF("./pdf2json/test/pdf/fd/form/F1040EZ.pdf");
-````
-
-* Parse a PDF then write a fields.json file that only contains interactive forms' fields information:
-
-````javascript
-    const fs = require('fs'),
-        PDFParser = require("pdf2json");
-
-    const pdfParser = new PDFParser();
-
-    pdfParser.on("pdfParser_dataError", errData => console.error(errData.parserError) );
-    pdfParser.on("pdfParser_dataReady", pdfData => {
-        fs.writeFile("./pdf2json/test/F1040EZ.fields.json", JSON.stringify(pdfParser.getAllFieldsTypes()), ()=>{console.log("Done.");});
-    });
-
-    pdfParser.loadPDF("./pdf2json/test/pdf/fd/form/F1040EZ.pdf");
-````
-
-Alternatively, you can pipe input and output streams: (requires v1.1.4)
-
-````javascript
-    const fs = require('fs'),
-        PDFParser = require("pdf2json");
-    
-    const inputStream = fs.createReadStream("./pdf2json/test/pdf/fd/form/F1040EZ.pdf", {bufferSize: 64 * 1024});
-    const outputStream = fs.createWriteStream("./pdf2json/test/target/fd/form/F1040EZ.json");
-    
-    inputStream.pipe(new PDFParser()).pipe(new StringifyStream()).pipe(outputStream);
-````
-
-With v2.0.0, last line above changes to
-````javascript
-    inputStream.pipe(this.pdfParser.createParserStream()).pipe(new StringifyStream()).pipe(outputStream);
-````
-
-For additional output streams support:
-````javascript
-    #generateMergedTextBlocksStream(callback) {
-		const outputStream = ParserStream.createOutputStream(this.outputPath.replace(".json", ".merged.json"), callback);
-		this.pdfParser.getMergedTextBlocksStream().pipe(new StringifyStream()).pipe(outputStream);
-	}
-
-    #generateRawTextContentStream(callback) {
-	    const outputStream = ParserStream.createOutputStream(this.outputPath.replace(".json", ".content.txt"), callback);
-	    this.pdfParser.getRawTextContentStream().pipe(outputStream);
+    pdfParser.on('pdfParser_dataError', errData => console.error(errData.parserError));
+    pdfParser.on('pdfParser_dataReady', pdfData => {
+    const fonts = pdfData.Meta.Metadata['xmptpg:fonts'];
+    if (fonts) {
+        const fontList = fonts.replace(/ /g, '').split('\n\n\n').map(font => font.split('\n')).map(font => ({
+        fontName: font[0],
+        fontFamily: font[1],
+        fontFace: font[2],
+        fontType: font[3],
+        versionString: font[4],
+        composite: font[5],
+        fontFileName: font[6]
+        }))
+        console.log(fontList);
+    } else {
+        if(pdfData.Meta.PDFFormatVersion === '1.5'){
+        const documentFonts = pdfData.Meta.documentFonts;
+        const fontList = documentFonts.map(font => ({
+            fontName: font,
+        }))
+        console.log(fontList);
+        }
     }
+    });
 
-    #generateFieldsTypesStream(callback) {
-		const outputStream = ParserStream.createOutputStream(this.outputPath.replace(".json", ".fields.json"), callback);
-		this.pdfParser.getAllFieldsTypesStream().pipe(new StringifyStream()).pipe(outputStream);
-	}
+    pdfParser.loadPDF('./test/测试-cdr.ai');
 ````
+
 See [p2jcmd.js](https://github.com/modesty/pdf2json/blob/master/lib/p2jcmd.js) for more details.
 
  
