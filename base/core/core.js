@@ -435,6 +435,28 @@ var PDFDocument = (function PDFDocumentClosure() {
         }
         // removing "%PDF-"-prefix
         this.pdfFormatVersion = version.substring(5);
+        if(this.pdfFormatVersion === '1.5'){
+          stream.reset();
+          if (find(stream, '%%DocumentFonts:', 1024 * 2)) {
+            // Found the header, trim off any garbage before it.
+            stream.moveStart();
+            let MAX_FONT_LENGTH = 500;
+            let fonts = '', ch;
+            ch = stream.getByte();
+            while (!fonts.includes('%AI3')) {
+              ch = stream.getByte();
+              if (fonts.length >= MAX_FONT_LENGTH) {
+                break;
+              }
+              fonts += String.fromCharCode(ch);
+            }
+            fonts = fonts.replace('%DocumentFonts:', '');
+            fonts = fonts.replace('%AI3', '');
+            let fontsList = fonts.split('%%+');
+            fontsList = fontsList.map(font => font.trim());
+            this.documentFonts = fontsList;
+          }
+        }
         return;
       }
       // May not be a PDF file, continue anyway.
@@ -456,6 +478,7 @@ var PDFDocument = (function PDFDocumentClosure() {
     get documentInfo() {
       var docInfo = {
         PDFFormatVersion: this.pdfFormatVersion,
+        documentFonts: this.documentFonts,
         IsAcroFormPresent: !!this.acroForm,
         IsXFAPresent: !!this.xfa
       };
