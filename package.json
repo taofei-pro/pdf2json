@@ -1,6 +1,6 @@
 {
   "name": "pdf2json-mod",
-  "version": "2.0.0-mod.2",
+  "version": "2.0.0-mod.3",
   "description": "PDF file parser that converts PDF binaries to text based JSON, powered by porting a fork of PDF.JS to Node.js",
   "keywords": [
     "pdf",
