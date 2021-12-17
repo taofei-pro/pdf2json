@@ -1,11 +1,11 @@
 const fs = require("fs"),
-    { readFile } = require("fs/promises"),
     {EventEmitter} = require("events"),
 	nodeUtil = require("util"),    
 	PDFJS = require("./lib/pdf"),
     {ParserStream} = require("./lib/parserstream"),
     {kColors, kFontFaces, kFontStyles} = require("./lib/pdfconst");
 
+const readFile = fs.promises?.readFile || require("fs/promises").readFile;
 
 class PDFParser extends EventEmitter { // inherit from event emitter
     //public static
@@ -149,7 +149,9 @@ class PDFParser extends EventEmitter { // inherit from event emitter
 
 		//context object will be set in Web Service project, but not in command line utility
 		if (this.#context) {
-			this.#context.destroy();
+			try {
+				this.#context.destroy();
+			} catch (e) {}
 			this.#context = null;
 		}
 
